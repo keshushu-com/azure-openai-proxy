@@ -2,16 +2,31 @@ package azure
 
 import (
 	"github.com/stulzq/azure-openai-proxy/constant"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
 	"regexp"
-	"strings"
+	"gopkg.in/yaml.v3"
 )
 
 const (
 	AuthHeaderKey = "api-key"
 )
+
+type Config struct {
+	Apikey string `yaml:"apikey"`
+	Endpoint string `yaml:"endpoint"`
+	Model string `yaml:"model"`
+}
+type Configs struct {
+	Configs []Config `yaml:"configs"`
+}
+
+type EndPointNew struct {
+	Uri *url.URL
+	Model string
+}
 
 var (
 	AzureOpenAIEndpoint      = ""
@@ -23,6 +38,8 @@ var (
 		"gpt-3.5-turbo": "gpt-35-turbo",
 	}
 	fallbackModelMapper = regexp.MustCompile(`[.:]`)
+
+	AzureOpenAIEndpointNew = map[string]EndPointNew{}
 )
 
 func Init() {
@@ -33,24 +50,47 @@ func Init() {
 		AzureOpenAIAPIVer = "2023-03-15-preview"
 	}
 
-	var err error
-	AzureOpenAIEndpointParse, err = url.Parse(AzureOpenAIEndpoint)
+	var data, err = ioutil.ReadFile("./azure.yaml")
 	if err != nil {
-		log.Fatal("parse AzureOpenAIEndpoint error: ", err)
+		log.Fatal("read file failed err: ", err)
 	}
 
-	if v := os.Getenv(constant.ENV_AZURE_OPENAI_MODEL_MAPPER); v != "" {
-		for _, pair := range strings.Split(v, ",") {
-			info := strings.Split(pair, "=")
-			if len(info) != 2 {
-				log.Fatalf("error parsing %s, invalid value %s", constant.ENV_AZURE_OPENAI_MODEL_MAPPER, pair)
-			}
+	var conf Configs;
+	err = yaml.Unmarshal(data, &conf)
+	if err != nil {
+		log.Fatal("unmarshal failed err: ", err)
+	}
 
-			AzureOpenAIModelMapper[info[0]] = info[1]
+	var uri *url.URL;
+	for _, config := range conf.Configs {
+		uri, err = url.Parse(config.Endpoint)
+		if err != nil {
+			log.Fatal("parse AzureOpenAIEndpoint error: ", err)
 		}
+		var ep EndPointNew
+		ep.Uri = uri
+		ep.Model = config.Model
+		AzureOpenAIEndpointNew[config.Apikey] = ep
 	}
+
+	//AzureOpenAIEndpointParse, err = url.Parse(AzureOpenAIEndpoint)
+	//if err != nil {
+	//	log.Fatal("parse AzureOpenAIEndpoint error: ", err)
+	//}
+
+	//if v := os.Getenv(constant.ENV_AZURE_OPENAI_MODEL_MAPPER); v != "" {
+	//	for _, pair := range strings.Split(v, ",") {
+	//		info := strings.Split(pair, "=")
+	//		if len(info) != 2 {
+	//			log.Fatalf("error parsing %s, invalid value %s", constant.ENV_AZURE_OPENAI_MODEL_MAPPER, pair)
+	//		}
+	//
+	//		AzureOpenAIModelMapper[info[0]] = info[1]
+	//	}
+	//}
 
 	log.Println("AzureOpenAIAPIVer: ", AzureOpenAIAPIVer)
 	log.Println("AzureOpenAIEndpoint: ", AzureOpenAIEndpoint)
 	log.Println("AzureOpenAIModelMapper: ", AzureOpenAIModelMapper)
+	log.Println("AzureOpenAIEndpointNew: ", AzureOpenAIEndpointNew)
 }

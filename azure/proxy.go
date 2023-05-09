@@ -3,7 +3,6 @@ package azure
 import (
 	"bytes"
 	"fmt"
-	"github.com/stulzq/azure-openai-proxy/util"
 	"io"
 	"log"
 	"net/http"
@@ -11,17 +10,17 @@ import (
 	"path"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/stulzq/azure-openai-proxy/util"
 )
 
 // Proxy Azure OpenAI
 func Proxy(c *gin.Context) {
 	if c.Request.Method == http.MethodOptions {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, OPTIONS, POST")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Authorization")
 		c.Status(200)
 		return
 	}
@@ -35,19 +34,20 @@ func Proxy(c *gin.Context) {
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 
 		// get model from body
-		model, err := sonic.Get(body, "model")
-		if err != nil {
-			util.SendError(c, errors.Wrap(err, "get model error"))
-			return
-		}
+		var model = ""
+		//model, err := sonic.Get(body, "model")
+		//if err != nil {
+		//	util.SendError(c, errors.Wrap(err, "get model error"))
+		//	return
+		//}
 
 		// get deployment from request
-		deployment, err := model.String()
-		if err != nil {
-			util.SendError(c, errors.Wrap(err, "get deployment error"))
-			return
-		}
-		deployment = GetDeploymentByModel(deployment)
+		//deployment, err := model.String()
+		//if err != nil {
+		//	util.SendError(c, errors.Wrap(err, "get deployment error"))
+		//	return
+		//}
+		//deployment = GetDeploymentByModel(deployment)
 
 		// get auth token from header
 		rawToken := req.Header.Get("Authorization")
@@ -55,10 +55,19 @@ func Proxy(c *gin.Context) {
 		req.Header.Set(AuthHeaderKey, token)
 		req.Header.Del("Authorization")
 
+		ep, ok := AzureOpenAIEndpointNew[token]
+		if !ok {
+			util.SendError(c, errors.Errorf("this apikey has no endpoint"))
+			return
+		}
+
+		uri := ep.Uri
+		deployment := ep.Model
+
 		originURL := req.URL.String()
-		req.Host = AzureOpenAIEndpointParse.Host
-		req.URL.Scheme = AzureOpenAIEndpointParse.Scheme
-		req.URL.Host = AzureOpenAIEndpointParse.Host
+		req.Host = uri.Host
+		req.URL.Scheme = uri.Scheme
+		req.URL.Host = uri.Host
 		req.URL.Path = path.Join(fmt.Sprintf("/openai/deployments/%s", deployment), strings.Replace(req.URL.Path, "/v1/", "/", 1))
 		req.URL.RawPath = req.URL.EscapedPath()
 

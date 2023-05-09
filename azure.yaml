@@ -1,0 +1,13 @@
+configs:
+  - apikey: "xxxxxxx"
+    endpoint: "https://xxxxxxx.openai.azure.com/"
+    model: "xxxxxxx-gpt4-32"
+  - apikey: "xxxxxxx"
+    endpoint: "https://xxxxxxx.openai.azure.com/"
+    model: "xxxxxxx-gpt4-32"
+  - apikey: "xxxxxxx"
+    endpoint: "https://xxxxxxx.openai.azure.com/"
+    model: "xxxxxxx-gpt4-32"
+  - apikey: "xxxxxxx"
+    endpoint: "https://xxxxxxx.openai.azure.com/"
+    model: "xxxxxxx-gpt4-32"
